@@ -217,6 +217,13 @@ func genBottleMsg(bottle DriftingBottleModel) (msg message.MessageSegment) {
         img.PasteLine(10, y, W-10, y, 2, "black")
         y += 25
     }
+    // 绘制 FromID 信息
+    if err = img.UseDefaultFont(14); err != nil { // 设置小一点的字体
+        return
+    }
+    img.SetRGB(0.5, 0.5, 0.5) // 灰色
+    img.DrawString(fromIDLine, 20, y-5)
+    
     msg, err = img.GenMessageAuto()
     return
 }
