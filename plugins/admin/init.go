@@ -45,9 +45,9 @@ func init() {
 	if proxy == nil {
 		return
 	}
-	proxy.OnCommands([]string{"踢了"}, zero.OnlyGroup).SetBlock(true).ThirdPriority().Handle(kickSomeone)
-	proxy.OnCommands([]string{"禁言"}, zero.OnlyGroup).SetBlock(true).ThirdPriority().Handle(muteSomeone)
-	proxy.OnMessage(zero.OnlyGroup, rules.ReplyAndCommands("禁言")).SetBlock(true).ThirdPriority().Handle(muteReply)
+	proxy.OnCommands([]string{"踢出群聊"}, zero.OnlyGroup).SetBlock(true).ThirdPriority().Handle(kickSomeone)
+	proxy.OnCommands([]string{"鲨"}, zero.OnlyGroup).SetBlock(true).ThirdPriority().Handle(muteSomeone)
+	proxy.OnMessage(zero.OnlyGroup, rules.ReplyAndCommands("鲨")).SetBlock(true).ThirdPriority().Handle(muteReply)
 	// 拉黑相关
 	proxy.OnCommands([]string{"拉黑"}, zero.OnlyToMe).SetBlock(true).ThirdPriority().Handle(blackSomeone)
 	proxy.OnCommands([]string{"取消拉黑"}, zero.OnlyToMe).SetBlock(true).ThirdPriority().Handle(unBlackSomeone)

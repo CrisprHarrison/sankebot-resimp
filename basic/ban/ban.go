@@ -26,13 +26,13 @@ func dealBanArgs(ctx *zero.Ctx) (userID int64, plugin *manager.PluginCondition, 
 	// 检查
 	args := strings.Split(strings.TrimSpace(preArgs), " ")
 	if len(args) == 0 || len(args[0]) == 0 {
-		ctx.Send("你倒是告诉我封掉谁呀")
+		ctx.Send("no such user")
 		return 0, nil, 0, fmt.Errorf("no such user")
 	}
 	// 处理用户ID
 	userID, err = strconv.ParseInt(args[0], 10, 64)
 	if err != nil {
-		ctx.Send("用户ID格式不对哦")
+		ctx.Send("no such user ID")
 		return 0, nil, 0, fmt.Errorf("no such user %v", args[0])
 	}
 	// 处理时长
@@ -49,7 +49,7 @@ func dealBanArgs(ctx *zero.Ctx) (userID int64, plugin *manager.PluginCondition, 
 	if len(args) >= 2 {
 		plugin = findPluginByName(args[len(args)-1])
 		if plugin == nil {
-			ctx.Send(fmt.Sprintf("没有叫%v的功能哦，可以看看帮助", args[len(args)-1]))
+			ctx.Send(fmt.Sprintf("no such plugin %v", args[len(args)-1]))
 			return 0, nil, period, fmt.Errorf("no such plugin %v", args[len(args)-1])
 		}
 	}

@@ -79,9 +79,9 @@ func authHook(condition *manager.PluginCondition, ctx *zero.Ctx) error {
 	}
 	if level > condition.AdminLevel {
 		if level == math.MaxInt {
-			ctx.Send(fmt.Sprintf("你的权限不足喔，需要权限%v", condition.AdminLevel))
+			return errors.New("用户权限不足")
 		} else {
-			ctx.Send(fmt.Sprintf("你的权限(%v)不足喔，需要权限%v", level, condition.AdminLevel))
+			return errors.New("用户权限不足")
 		}
 		return errors.New("用户权限不足")
 	}
