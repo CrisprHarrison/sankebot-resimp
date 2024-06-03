@@ -193,7 +193,6 @@ func genBottleMsg(bottle DriftingBottleModel) (msg message.MessageSegment) {
     }
     // 添加 FromID 信息
     fromIDLine := fmt.Sprintf("From %d", bottle.FromID)
-    result += "\n" + fromIDLine
 
     newW, newH := img.MeasureMultilineString(result, 1.45)
     if newW > W {
