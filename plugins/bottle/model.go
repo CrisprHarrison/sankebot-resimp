@@ -8,10 +8,11 @@ import (
 )
 
 type DriftingBottleModel struct {
-	ID        int
-	FromID    int64 `gorm:"column:from_id"`
-	Content   string
-	CreatedAt time.Time
+	ID        uint64    `gorm:"primaryKey;autoIncrement"`
+	FromID    int64     `gorm:"index"`
+	Content   string    `gorm:"type:text"`
+	ImagePath string    `gorm:"type:text"` // 新增字段存储图片路径
+	CreatedAt time.Time `gorm:"index"`
 }
 
 func init() {
