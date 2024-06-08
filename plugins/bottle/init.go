@@ -155,57 +155,74 @@ func deleteAllHandler(ctx *zero.Ctx) {
 	return
 }
 
-func genBottleMsg(bottle DriftingBottleModel) message.Message {
+func genBottleMsg(bottle DriftingBottleModel) (msg message.MessageSegment) {
     var err error
     defer func() {
         if err != nil {
             log.Errorf("genBottleMsg err: %v", err)
+            msg = message.Text(fmt.Sprintf("漂流瓶ID：%d\n%s", bottle.ID, bottle.Content))
         }
     }()
-    
-    // Generate text message
-    textMsg := message.Text(fmt.Sprintf("漂流瓶ID：%d\n%s", bottle.ID, bottle.Content))
-    
-    // Generate image message
-    img, err := generateBottleImage(bottle)
-    if err != nil {
-        log.Errorf("generateBottleImage err: %v", err)
-        return textMsg
-    }
-    
-    // Combine text and image messages
-    return message.Combine(textMsg, img)
-}
-
-func generateBottleImage(bottle DriftingBottleModel) (message.Message, error) {
-    var err error
-    defer func() {
-        if err != nil {
-            log.Errorf("generateBottleImage err: %v", err)
-        }
-    }()
-    
     W, H := 310.0, 50.0
-    // Your image generation code here
-    img := images.NewImageCtxWithBGColor(int(W), int(H), "#faf9de")
+    // 测量长度 分行
+    img := images.NewImageCtx(1, 1)
     if err = img.UseDefaultFont(18); err != nil {
-        return message.Empty(), err
+        return
     }
-    img.SetRGB(0, 0, 0) // Black color
+    var current, result string
+    for _, word := range []rune(bottle.Content) {
+        if word == '\n' {
+            result += current + "\n"
+            current = ""
+            continue
+        }
+        if w, _ := img.MeasureString(current + string(word)); w > W {
+            if current == "" {
+                result += string(word) + "\n"
+                current = ""
+                continue
+            } else {
+                result += current + "\n"
+                current = ""
+            }
+        }
+        current += string(word)
+    }
+    if current != "" {
+        result += current
+    }
+    // 添加 FromID 信息
+    fromIDLine := fmt.Sprintf("From %d", bottle.FromID)
+
+    newW, newH := img.MeasureMultilineString(result, 1.45)
+    if newW > W {
+        W = newW
+    }
+    if newH > H {
+        H = newH
+    }
+    W, H = W + 40, H + 60
+    // 画图
+    img = images.NewImageCtxWithBGColor(int(W), int(H), "#faf9de")
+    if err = img.UseDefaultFont(18); err != nil {
+        return
+    }
+    img.SetRGB(0, 0, 0) // 纯黑色
     img.DrawString(fmt.Sprintf("漂流瓶ID %d", bottle.ID), 10, 30)
-    lines := strings.Split(bottle.Content, "\n")
+    lines := strings.Split(result, "\n")
     y := 65.0
     for _, line := range lines {
         img.DrawString(line, 20, y-5)
         img.PasteLine(10, y, W-10, y, 2, "black")
         y += 25
     }
-    
-    // Convert the image to a message segment
-    msg, err := img.GenMessageAuto()
-    if err != nil {
-        return message.Empty(), err
+    // 绘制 FromID 信息
+    if err = img.UseDefaultFont(14); err != nil { // 设置小一点的字体
+        return
     }
+    img.SetRGB(0.5, 0.5, 0.5) // 灰色
+    img.DrawString(fromIDLine, 20, y-5)
     
-    return msg, nil
+    msg, err = img.GenMessageAuto()
+    return
 }
