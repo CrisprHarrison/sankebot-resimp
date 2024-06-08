@@ -1,9 +1,13 @@
+// plugins/bottle/init.go
+
 package bottle
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/RicheyJang/PaimengBot/basic/auth"
 	"github.com/RicheyJang/PaimengBot/manager"
@@ -66,6 +70,16 @@ func dropHandler(ctx *zero.Ctx) {
 			return
 		}
 	}
+
+	// 保存图片并获取链接
+	var imgPath string
+	for _, elem := range ctx.Event.Message {
+		if img, ok := elem.(message.Image); ok {
+			imgPath = saveImageToDisk(img)
+			break
+		}
+	}
+
 	// 记录数据库
 	err := proxy.GetDB().Transaction(func(tx *gorm.DB) error {
 		// 判断是否溢出
@@ -83,8 +97,9 @@ func dropHandler(ctx *zero.Ctx) {
 		}
 		// 创建
 		bottle := DriftingBottleModel{
-			FromID:  ctx.Event.UserID,
-			Content: content,
+			FromID:    ctx.Event.UserID,
+			Content:   content,
+			ImagePath: imgPath, // 保存图片路径
 		}
 		return tx.Create(&bottle).Error
 	})
@@ -94,6 +109,15 @@ func dropHandler(ctx *zero.Ctx) {
 		return
 	}
 	ctx.Send("已经替你扔出去啦")
+}
+
+func saveImageToDisk(img message.Image) string {
+	imgPath := fmt.Sprintf("/data/img/bottle/%d.%s", time.Now().UnixNano(), img.Ext)
+	if err := img.Download(imgPath); err != nil {
+		log.Errorf("Failed to save image: %v", err)
+		return ""
+	}
+	return imgPath
 }
 
 func pickHandler(ctx *zero.Ctx) {
@@ -114,7 +138,7 @@ func pickHandler(ctx *zero.Ctx) {
 	}
 	ctx.Send(genBottleMsg(bottle))
 	if proxy.GetConfigBool("destroy") {
-		proxy.GetDB().Delete(bottle)
+		proxy.GetDB().Delete(&bottle)
 	}
 }
 
@@ -156,73 +180,83 @@ func deleteAllHandler(ctx *zero.Ctx) {
 }
 
 func genBottleMsg(bottle DriftingBottleModel) (msg message.MessageSegment) {
-    var err error
-    defer func() {
-        if err != nil {
-            log.Errorf("genBottleMsg err: %v", err)
-            msg = message.Text(fmt.Sprintf("漂流瓶ID：%d\n%s", bottle.ID, bottle.Content))
-        }
-    }()
-    W, H := 310.0, 50.0
-    // 测量长度 分行
-    img := images.NewImageCtx(1, 1)
-    if err = img.UseDefaultFont(18); err != nil {
-        return
-    }
-    var current, result string
-    for _, word := range []rune(bottle.Content) {
-        if word == '\n' {
-            result += current + "\n"
-            current = ""
-            continue
-        }
-        if w, _ := img.MeasureString(current + string(word)); w > W {
-            if current == "" {
-                result += string(word) + "\n"
-                current = ""
-                continue
-            } else {
-                result += current + "\n"
-                current = ""
-            }
-        }
-        current += string(word)
-    }
-    if current != "" {
-        result += current
-    }
-    // 添加 FromID 信息
-    fromIDLine := fmt.Sprintf("From %d", bottle.FromID)
+	var err error
+	defer func() {
+		if err != nil {
+			log.Errorf("genBottleMsg err: %v", err)
+			msg = message.Text(fmt.Sprintf("漂流瓶ID：%d\n%s", bottle.ID, bottle.Content))
+		}
+	}()
+	W, H := 310.0, 50.0
+	// 测量长度 分行
+	img := images.NewImageCtx(1, 1)
+	if err = img.UseDefaultFont(18); err != nil {
+		return
+	}
+	var current, result string
+	for _, word := range []rune(bottle.Content) {
+		if word == '\n' {
+			result += current + "\n"
+			current = ""
+			continue
+		}
+		if w, _ := img.MeasureString(current + string(word)); w > W {
+			if current == "" {
+				result += string(word) + "\n"
+				current = ""
+				continue
+				}
+			else {
+				result += current + "\n"
+				current = ""
+			}
+		}
+		current += string(word)
+	}
+	if current != "" {
+		result += current
+	}
+	// 添加 FromID 信息
+	fromIDLine := fmt.Sprintf("From %d", bottle.FromID)
 
-    newW, newH := img.MeasureMultilineString(result, 1.45)
-    if newW > W {
-        W = newW
-    }
-    if newH > H {
-        H = newH
-    }
-    W, H = W + 40, H + 60
-    // 画图
-    img = images.NewImageCtxWithBGColor(int(W), int(H), "#faf9de")
-    if err = img.UseDefaultFont(18); err != nil {
-        return
-    }
-    img.SetRGB(0, 0, 0) // 纯黑色
-    img.DrawString(fmt.Sprintf("漂流瓶ID %d", bottle.ID), 10, 30)
-    lines := strings.Split(result, "\n")
-    y := 65.0
-    for _, line := range lines {
-        img.DrawString(line, 20, y-5)
-        img.PasteLine(10, y, W-10, y, 2, "black")
-        y += 25
-    }
-    // 绘制 FromID 信息
-    if err = img.UseDefaultFont(14); err != nil { // 设置小一点的字体
-        return
-    }
-    img.SetRGB(0.5, 0.5, 0.5) // 灰色
-    img.DrawString(fromIDLine, 20, y-5)
-    
-    msg, err = img.GenMessageAuto()
-    return
+	newW, newH := img.MeasureMultilineString(result, 1.45)
+	if newW > W {
+		W = newW
+	}
+	if newH > H {
+		H = newH
+	}
+	W, H = W + 40, H + 60
+	// 画图
+	img = images.NewImageCtxWithBGColor(int(W), int(H), "#faf9de")
+	if err = img.UseDefaultFont(18); err != nil {
+		return
+	}
+	img.SetRGB(0, 0, 0) // 纯黑色
+	img.DrawString(fmt.Sprintf("漂流瓶ID %d", bottle.ID), 10, 30)
+	lines := strings.Split(result, "\n")
+	y := 65.0
+	for _, line := range lines {
+		img.DrawString(line, 20, y-5)
+		img.PasteLine(10, y, W-10, y, 2, "black")
+		y += 25
+	}
+	// 绘制 FromID 信息
+	if err = img.UseDefaultFont(14); err != nil { // 设置小一点的字体
+		return
+	}
+	img.SetRGB(0.5, 0.5, 0.5) // 灰色
+	img.DrawString(fromIDLine, 20, y-5)
+
+	// 添加图片
+	if bottle.ImagePath != "" {
+		imgPath := filepath.Join("file://", bottle.ImagePath)
+		if err = img.LoadFromFile(imgPath); err != nil {
+			return
+		}
+		imgElem := message.ImageElement(imgPath)
+		msg = message.Text(fmt.Sprintf("漂流瓶ID：%d\n%s", bottle.ID, bottle.Content)).AddElement(imgElem)
+	}
+
+	return
 }
