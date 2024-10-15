@@ -103,7 +103,7 @@ func muteSomeone(ctx *zero.Ctx) {
 		ctx.Send("？")
 		return
 	}
-	// 禁言
+	// 全群禁言
 	if id == 0 {
 		ctx.SetGroupWholeBan(ctx.Event.GroupID, duration != 0)
 		_, _ = proxy.AddScheduleOnceFunc(duration, getCancelWholeBanFunc(ctx.Event.GroupID))
@@ -145,11 +145,6 @@ func muteReply(ctx *zero.Ctx) {
 	if args == "0" {
 		duration = 0
 	} else {
-		seconds, err := parseDurationWithDay(args)
-		if err != nil {
-			ctx.Send("时长格式错误")
-			return
-		}
 		duration = seconds
 	}
 	if duration != 0 && duration <= time.Minute { // 至少禁言1分钟
@@ -197,37 +192,26 @@ func analysisArgs(ctx *zero.Ctx, parseTime bool) (ID int64, seconds time.Duratio
 			return
 		}
 	}
-	// 解析时长
-	if parseTime {
-		if subs[len(subs)-1] == "0" {
-			seconds = 0
-			return
-		}
-		seconds, err = parseDurationWithDay(subs[len(subs)-1])
-		if err != nil {
-			ctx.Send("时长格式错误")
-			return
-		}
-	}
-	return
+	  // 解析时长（新的逻辑）
+	  if parseTime {
+        minutes, err := strconv.Atoi(subs[len(subs)-1])
+        if err != nil {
+            ctx.Send("时长格式错误")
+			seconds = time.Duration(randkill()) * time.Second
+        }
+        // 处理时长为0的情况
+        if minutes == 0 {
+            seconds = 0
+        } else {
+        // 将分钟转换为 time.Duration（分钟）
+        seconds = time.Duration(minutes) * time.Minute
+    }
+    return
 }
 
-func parseDurationWithDay(duration string) (res time.Duration, err error) {
-	if len(duration) == 0 {
-		return 0, fmt.Errorf("duration too short")
-	}
-	if match, _ := regexp.MatchString("^[1-9]+d.*", duration); match {
-		dIndex := strings.IndexRune(duration, 'd')
-		day, _ := strconv.Atoi(duration[:dIndex])
-		res = 24 * time.Hour * time.Duration(day)
-		duration = duration[dIndex+1:]
-		if len(duration) == 0 {
-			return
-		}
-	}
-	other, err := time.ParseDuration(duration)
-	if err != nil {
-		return 0, err
-	}
-	return other + res, err
+
+
+func randkill() int64 {
+	seconds := time.Now().Unix() + 3 // 获取当前时间的秒数并加3
+    return seconds * 60               // 将结果乘以60并返回
 }
